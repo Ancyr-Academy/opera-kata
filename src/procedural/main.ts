@@ -6,31 +6,42 @@ Constraints :
 */
 
 import { print } from './logger';
-import { fetchOrchestraSeats, fetchParterreSeats } from './api';
-import { ApiTopology } from '../commons/types';
+import {
+  fetchBalconySeats,
+  fetchOrchestraSeats,
+  fetchParterreSeats,
+} from './api';
+import { ApiBalconyTopology, ApiTopology } from '../commons/types';
 import { getDate } from './time';
 
 export type ReservationOrder = {
   places: number;
   location: string;
-  withLodge: boolean;
-  fullLodge: boolean;
-  orchestraOrBalconyPreference: null | string;
+  lodgeOnly: boolean;
+  backToFront: boolean;
 };
 
 export type ReservedSeat = {
-  id: string;
   location: string;
-  row: number;
+  // either row or lodge can be set, not both
+  row: number | null;
+  lodge: number | null;
   position: number;
 };
 
+const MINIMUM_VIP_LODGES = 4;
+
 export const reserve = async (order: ReservationOrder) => {
   let topology: ApiTopology;
+  let balconyTopology: ApiBalconyTopology;
+
   if (order.location === 'Orchestra') {
     topology = await fetchOrchestraSeats();
   } else if (order.location === 'Parterre') {
     topology = await fetchParterreSeats();
+  } else if (order.location === 'Balcony') {
+    balconyTopology = await fetchBalconySeats();
+    topology = balconyTopology.parterre;
   } else {
     throw new Error('Invalid location');
   }
@@ -52,34 +63,105 @@ export const reserve = async (order: ReservationOrder) => {
     }
   }
 
-  for (const [index, row] of topology.rows.entries()) {
-    if (isYouthProgramPeriod) {
-      if (index < 3) {
-        continue;
-      }
-    }
+  let shouldScanTopology = true;
+  if (order.location === 'Balcony' && order.lodgeOnly) {
+    shouldScanTopology = false;
+  }
 
-    for (const seat of row.seats) {
-      if (!seat.reserved) {
-        reservedSeats.push({
-          id: '1',
-          location: order.location,
-          row: row.position,
-          position: seat.position,
-        });
+  if (shouldScanTopology) {
+    if (order.backToFront) {
+      for (const [index, row] of topology.rows.entries()) {
+        if (isYouthProgramPeriod) {
+          if (index < 3) {
+            continue;
+          }
+        }
+
+        for (const seat of row.seats) {
+          if (!seat.reserved) {
+            reservedSeats.push({
+              location: order.location,
+              row: row.position,
+              lodge: null,
+              position: seat.position,
+            });
+
+            if (reservedSeats.length === order.places) {
+              break;
+            }
+          }
+        }
 
         if (reservedSeats.length === order.places) {
           break;
         }
+
+        reservedSeats = [];
+      }
+    } else {
+      // Start from the last rows
+      for (let i = topology.rows.length - 1; i >= 0; i--) {
+        const row = topology.rows[i];
+
+        if (isYouthProgramPeriod) {
+          if (i < 3) {
+            continue;
+          }
+        }
+
+        for (const seat of row.seats) {
+          if (!seat.reserved) {
+            reservedSeats.push({
+              location: order.location,
+              row: row.position,
+              lodge: null,
+              position: seat.position,
+            });
+
+            if (reservedSeats.length === order.places) {
+              break;
+            }
+          }
+        }
+
+        if (reservedSeats.length === order.places) {
+          break;
+        }
+
+        reservedSeats = [];
       }
     }
+  }
 
-    if (reservedSeats.length === order.places) {
-      break;
-    }
+  if (reservedSeats.length === 0) {
+    if (
+      order.location === 'Balcony' &&
+      order.places <= 3 &&
+      balconyTopology!.lodges.length > MINIMUM_VIP_LODGES
+    ) {
+      // Try to find in the lodges
+      for (const lodge of balconyTopology!.lodges) {
+        for (const seat of lodge.seats) {
+          if (!seat.reserved) {
+            reservedSeats.push({
+              location: order.location,
+              row: null,
+              lodge: lodge.position,
+              position: seat.position,
+            });
 
-    if (reservedSeats.length < order.places) {
-      reservedSeats = [];
+            if (reservedSeats.length === order.places) {
+              break;
+            }
+          }
+        }
+
+        if (reservedSeats.length === order.places) {
+          break;
+        }
+
+        reservedSeats = [];
+      }
     }
   }
 
@@ -89,7 +171,11 @@ export const reserve = async (order: ReservationOrder) => {
     print('Reserved Seat:');
 
     for (const seat of reservedSeats) {
-      print(`- ${seat.location}, row ${seat.row}, position ${seat.position}`);
+      if (seat.lodge !== null) {
+        print(`- Lodge ${seat.lodge}, position ${seat.position}`);
+      } else {
+        print(`- ${seat.location}, row ${seat.row}, position ${seat.position}`);
+      }
     }
   }
 

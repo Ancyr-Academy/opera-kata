@@ -41,13 +41,13 @@ beforeEach(() => {
 });
 
 describe('orchestra', () => {
-  const doReserve = (places = 1) =>
+  const doReserve = (data?: { places?: number; backToFront?: boolean }) =>
     reserve({
-      places,
+      places: 1,
       location: 'Orchestra',
-      withLodge: false,
-      fullLodge: false,
-      orchestraOrBalconyPreference: null,
+      lodgeOnly: false,
+      backToFront: true,
+      ...data,
     });
 
   test('no places available', async () => {
@@ -139,6 +139,34 @@ describe('orchestra', () => {
       expect(logs[1]).toEqual('- Orchestra, row 1, position 1');
       expect(logs.length).toBe(2); // ensure no other seats were reserved
     });
+
+    test('reserving front to back', async () => {
+      fetchOrchestraSeatsMock.mockImplementationOnce(async () => ({
+        rows: [
+          {
+            position: 1,
+            seats: [
+              { position: 1, reserved: false },
+              { position: 2, reserved: false },
+            ],
+          },
+          {
+            position: 2,
+            seats: [
+              { position: 1, reserved: false },
+              { position: 2, reserved: false },
+            ],
+          },
+        ],
+      }));
+
+      await doReserve({ backToFront: false });
+
+      const logs = getLogCalls();
+      expect(logs[0]).toEqual('Reserved Seat:');
+      expect(logs[1]).toEqual('- Orchestra, row 2, position 1');
+      expect(logs.length).toBe(2); // ensure no other seats were reserved
+    });
   });
 
   describe('reserving many seats', () => {
@@ -156,7 +184,7 @@ describe('orchestra', () => {
         ],
       }));
 
-      await doReserve(3);
+      await doReserve({ places: 3 });
 
       const logs = getLogCalls();
       expect(logs[0]).toEqual('Reserved Seat:');
@@ -182,7 +210,7 @@ describe('orchestra', () => {
         ],
       }));
 
-      await doReserve(3);
+      await doReserve({ places: 3 });
 
       const logs = getLogCalls();
       expect(logs[0]).toEqual('No seats available');
@@ -195,9 +223,8 @@ describe('parterre', () => {
     reserve({
       places,
       location: 'Parterre',
-      withLodge: false,
-      fullLodge: false,
-      orchestraOrBalconyPreference: null,
+      lodgeOnly: false,
+      backToFront: true,
     });
 
   test('no places available', async () => {
@@ -294,7 +321,194 @@ describe('parterre', () => {
 });
 
 describe('balcony', () => {
-  test('it', () => {
-    expect(true).toBe(true);
+  const vipRequiredLodgs = [
+    {
+      position: 10,
+      seats: [],
+    },
+    {
+      position: 11,
+      seats: [],
+    },
+    {
+      position: 12,
+      seats: [],
+    },
+    {
+      position: 13,
+      seats: [],
+    },
+  ];
+
+  const doReserve = (data: { places: number; lodgeOnly?: boolean }) =>
+    reserve({
+      location: 'Balcony',
+      lodgeOnly: false,
+      backToFront: true,
+      ...data,
+    });
+
+  test('no places available', async () => {
+    await doReserve({ places: 1 });
+    expect(printMock).toHaveBeenCalledWith('No seats available');
+  });
+
+  test('fetching from Parterre API', async () => {
+    await doReserve({ places: 1 });
+    expect(fetchBalconySeatsMock).toHaveBeenCalledOnce();
+  });
+
+  test('should reserve contiguous seats in the parterre of the balcony', async () => {
+    fetchBalconySeatsMock.mockImplementationOnce(async () => ({
+      parterre: {
+        rows: [
+          {
+            position: 1,
+            seats: [
+              { position: 1, reserved: false },
+              { position: 2, reserved: false },
+              { position: 3, reserved: false },
+            ],
+          },
+        ],
+      },
+      lodges: [...vipRequiredLodgs],
+    }));
+
+    await doReserve({ places: 3 });
+
+    const logs = getLogCalls();
+    expect(logs[0]).toEqual('Reserved Seat:');
+    expect(logs[1]).toEqual('- Balcony, row 1, position 1');
+    expect(logs[2]).toEqual('- Balcony, row 1, position 2');
+    expect(logs[3]).toEqual('- Balcony, row 1, position 3');
+  });
+
+  test('when the parterre is full, should fallback to the lodges', async () => {
+    fetchBalconySeatsMock.mockImplementationOnce(async () => ({
+      parterre: {
+        rows: [],
+      },
+      lodges: [
+        {
+          position: 1,
+          seats: [{ position: 1, reserved: false }],
+        },
+        {
+          position: 2,
+          seats: [],
+        },
+        ...vipRequiredLodgs,
+      ],
+    }));
+
+    await doReserve({ places: 1 });
+
+    const logs = getLogCalls();
+    expect(logs[0]).toEqual('Reserved Seat:');
+    expect(logs[1]).toEqual('- Lodge 1, position 1');
+  });
+
+  describe('reserving many seats', () => {
+    test('all seats should belong to the same lodge', async () => {
+      fetchBalconySeatsMock.mockImplementationOnce(async () => ({
+        parterre: {
+          rows: [],
+        },
+        lodges: [
+          {
+            position: 1,
+            seats: [{ position: 1, reserved: false }],
+          },
+          {
+            position: 2,
+            seats: [
+              { position: 1, reserved: false },
+              { position: 2, reserved: false },
+              { position: 3, reserved: false },
+            ],
+          },
+          ...vipRequiredLodgs,
+        ],
+      }));
+
+      await doReserve({ places: 3 });
+
+      const logs = getLogCalls();
+      expect(logs[0]).toEqual('Reserved Seat:');
+      expect(logs[1]).toEqual('- Lodge 2, position 1');
+      expect(logs[2]).toEqual('- Lodge 2, position 2');
+      expect(logs[3]).toEqual('- Lodge 2, position 3');
+    });
+
+    test('can reserve more than 3 seats only in the parterre', async () => {
+      fetchBalconySeatsMock.mockImplementationOnce(async () => ({
+        parterre: {
+          rows: [],
+        },
+        lodges: [
+          {
+            position: 1,
+            seats: [
+              { position: 1, reserved: false },
+              { position: 2, reserved: false },
+              { position: 3, reserved: false },
+              { position: 4, reserved: false },
+            ],
+          },
+          ...vipRequiredLodgs,
+        ],
+      }));
+
+      await doReserve({ places: 4 });
+
+      const logs = getLogCalls();
+      expect(logs[0]).toEqual('No seats available');
+    });
+
+    test('at least 4 lodges must remain unreserved', async () => {
+      fetchBalconySeatsMock.mockImplementationOnce(async () => ({
+        parterre: {
+          rows: [],
+        },
+        lodges: [
+          {
+            position: 1,
+            seats: [{ position: 1, reserved: false }],
+          },
+        ],
+      }));
+
+      await doReserve({ places: 1 });
+
+      const logs = getLogCalls();
+      expect(logs[0]).toEqual('No seats available');
+    });
+  });
+
+  test('lodge only', async () => {
+    fetchBalconySeatsMock.mockImplementationOnce(async () => ({
+      parterre: {
+        rows: [
+          {
+            position: 1,
+            seats: [{ position: 1, reserved: false }],
+          },
+        ],
+      },
+      lodges: [
+        {
+          position: 1,
+          seats: [{ position: 1, reserved: false }],
+        },
+        ...vipRequiredLodgs,
+      ],
+    }));
+
+    await doReserve({ places: 1, lodgeOnly: true });
+
+    const logs = getLogCalls();
+    expect(logs[0]).toEqual('Reserved Seat:');
+    expect(logs[1]).toEqual('- Lodge 1, position 1');
   });
 });
