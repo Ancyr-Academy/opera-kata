@@ -14,11 +14,12 @@ Il peut spécifier :
 - Si le client choisit la catégorie `Orchestra` ou `Parterre`, il peut spécifier une préférence entre l'avant et l'arrière de la salle
 
 Voici les contraintes :
-- S'il choisit `Balcony`, une loge ne peut être assignée que si le nombre de place n'excède pas 3
+- S'il choisit `Balcony`, on essaye d'abord d'assigner les places au balcon, sinon dans une des loges.
+- Une loge ne peut être assignée que si le nombre de place n'excède pas 3
 - Les 3 premières rangées de la catégorie `Parterre` sont indisponible entre le 21 Juin et le 21 Septembre car elles sont réservées à des programmes 
 de financement de la culture chez les jeunes. Notre système de réservation est utilisé par des adultes qui
 ne sont pas concernés par ces programmes, donc les sièges apparaitront comme "disponibles" mais ne le seront en réalité pas.
-- Dans le cas de `Balcony`, Il doit toujours y avoir au moins 4 loges disponibles pour les VIP
+- Dans le cas de `Balcony`, Il doit toujours rester au moins 4 loges disponibles pour les VIP
 
 ## Fonctionnement
 
