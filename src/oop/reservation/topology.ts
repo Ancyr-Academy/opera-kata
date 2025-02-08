@@ -1,4 +1,4 @@
-import { ReservableSeat, Search } from './types';
+import { ReservableSeat, Search } from '../organization/types';
 
 export interface Topology {
   findSuitableSeats(search: Search): ReservableSeat[] | null;

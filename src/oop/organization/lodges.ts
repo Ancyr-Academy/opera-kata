@@ -1,4 +1,4 @@
-import { ReservableSeat, Search } from '../types';
+import { ReservableSeat, Search } from './types';
 import { Lodge, LodgeSeat } from './lodge';
 
 export class Lodges {

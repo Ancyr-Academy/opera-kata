@@ -1,5 +1,5 @@
 import { Row } from './row';
-import { Location, ReservableSeat, Search } from '../types';
+import { Location, ReservableSeat, Search } from './types';
 
 export class Rows {
   private rows: Row[] = [];

@@ -1,7 +1,7 @@
 import { Row } from '../organization/row';
-import { Search } from '../types';
+import { Search } from '../organization/types';
 import { Rows } from '../organization/rows';
-import { Topology } from '../topology';
+import { Topology } from '../reservation/topology';
 
 export class ParterreTopology implements Topology {
   private rows: Rows;

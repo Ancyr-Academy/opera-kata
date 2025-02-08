@@ -1,4 +1,4 @@
-import { ReservableSeat } from './types';
+import { ReservableSeat } from '../organization/types';
 
 export class ReservationTicket {
   private places: number = 0;

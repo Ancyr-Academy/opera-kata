@@ -1,14 +1,14 @@
-import { NoSeatTicket } from './no-seat-ticket';
-import { ReservationTicket } from './reservation-ticket';
+import { NoSeatTicket } from './reservation/no-seat-ticket';
+import { ReservationTicket } from './reservation/reservation-ticket';
 import { Seat } from './organization/seat';
-import { ReservationService } from './reservation-service';
+import { ReservationService } from './reservation/reservation-service';
 import { Row } from './organization/row';
 import { OrchestraTopology } from './topology/orchestra-topology';
 import { ParterreTopology } from './topology/parterre-topology';
 import { BalconyTopology } from './topology/balcony-topology';
 import { Lodge } from './organization/lodge';
-import { Topology } from './topology';
-import { ReservableSeat } from './types';
+import { Topology } from './reservation/topology';
+import { ReservableSeat } from './organization/types';
 
 class NullTopology implements Topology {
   findSuitableSeats(): ReservableSeat[] | null {

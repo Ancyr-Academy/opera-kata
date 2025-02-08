@@ -1,9 +1,9 @@
 import { Row } from '../organization/row';
-import { ReservableSeat, Search } from '../types';
+import { ReservableSeat, Search } from '../organization/types';
 import { Lodge } from '../organization/lodge';
 import { Rows } from '../organization/rows';
 import { Lodges } from '../organization/lodges';
-import { Topology } from '../topology';
+import { Topology } from '../reservation/topology';
 
 export class BalconyTopology implements Topology {
   private lodges: Lodges;

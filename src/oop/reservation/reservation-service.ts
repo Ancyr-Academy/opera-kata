@@ -1,6 +1,6 @@
 import { NoSeatTicket } from './no-seat-ticket';
 import { ReservationTicket } from './reservation-ticket';
-import { Location, SearchPreference } from './types';
+import { Location, SearchPreference } from '../organization/types';
 import { Topology } from './topology';
 
 export class ReservationService {
