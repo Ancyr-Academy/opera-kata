@@ -2,6 +2,8 @@ import { ReservableSeat, Search } from '../types';
 import { Lodge, LodgeSeat } from './lodge';
 
 export class Lodges {
+  static VIP_SEATS = 4;
+
   private lodges: Lodge[] = [];
 
   private location: 'balcony';
@@ -13,6 +15,10 @@ export class Lodges {
 
   findSuitableSeats(search: Search) {
     if (search.quantity > 3) {
+      return null;
+    }
+
+    if (!this.hasFreeLodges()) {
       return null;
     }
 
@@ -36,5 +42,13 @@ export class Lodges {
       lodge: seat.lodge,
       position: seat.position,
     };
+  }
+
+  hasFreeLodges() {
+    const lodgesWithAvailableSeats = this.lodges.filter((lodge) =>
+      lodge.hasAvailableSeats(),
+    );
+
+    return lodgesWithAvailableSeats.length > Lodges.VIP_SEATS;
   }
 }

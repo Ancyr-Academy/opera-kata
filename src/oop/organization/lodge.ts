@@ -34,4 +34,8 @@ export class Lodge {
 
     return null;
   }
+
+  hasAvailableSeats() {
+    return this.seats.some((seat) => seat.isAvailable());
+  }
 }

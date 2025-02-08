@@ -8,10 +8,10 @@ import { ParterreTopology } from './topology/parterre-topology';
 import { BalconyTopology } from './topology/balcony-topology';
 import { Lodge } from './organization/lodge';
 import { Topology } from './topology';
-import { ReservableSeat, Search } from './types';
+import { ReservableSeat } from './types';
 
 class NullTopology implements Topology {
-  findSuitableSeats(search: Search): ReservableSeat[] | null {
+  findSuitableSeats(): ReservableSeat[] | null {
     return null;
   }
 }
@@ -37,7 +37,13 @@ const unavailableSeat = (position: number) =>
   new Seat({ available: false, position });
 const lodge = (position: number, seats: Seat[]) =>
   new Lodge({ position, seats });
-const withVipLodges = (lodges: Lodge[]) => [...lodges];
+const withVipLodges = (lodges: Lodge[]) => [
+  ...lodges,
+  lodge(10, [availableSeat(1)]),
+  lodge(11, [availableSeat(1)]),
+  lodge(12, [availableSeat(1)]),
+  lodge(13, [availableSeat(1)]),
+];
 
 describe('orchestra', () => {
   test('no seat available', () => {
@@ -523,6 +529,53 @@ describe('balcony', () => {
 
       const ticket = service.reserve({
         places: 4,
+        location: 'balcony',
+      });
+
+      const expectedTicket = new NoSeatTicket();
+      expect(ticket).toEqual(expectedTicket);
+    });
+  });
+
+  describe('keeping at least 4 lodges unassigned for VIPs', () => {
+    test('only 4 lodges remain', () => {
+      const { service } = createSUT({
+        topology: new BalconyTopology({
+          lodges: [
+            lodge(1, [availableSeat(1)]),
+            lodge(2, [availableSeat(1)]),
+            lodge(3, [availableSeat(1)]),
+            lodge(4, [availableSeat(1)]),
+          ],
+          balconyRows: [],
+        }),
+      });
+
+      const ticket = service.reserve({
+        places: 1,
+        location: 'balcony',
+      });
+
+      const expectedTicket = new NoSeatTicket();
+      expect(ticket).toEqual(expectedTicket);
+    });
+
+    test('5 lodges remain but one of them is unavailable', () => {
+      const { service } = createSUT({
+        topology: new BalconyTopology({
+          lodges: [
+            lodge(1, [availableSeat(1)]),
+            lodge(2, [availableSeat(1)]),
+            lodge(3, [availableSeat(1)]),
+            lodge(4, [availableSeat(1)]),
+            lodge(5, [unavailableSeat(1)]),
+          ],
+          balconyRows: [],
+        }),
+      });
+
+      const ticket = service.reserve({
+        places: 1,
         location: 'balcony',
       });
 
