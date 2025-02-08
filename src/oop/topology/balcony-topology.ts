@@ -28,6 +28,10 @@ export class BalconyTopology implements Topology {
       return seats;
     }
 
+    if (search.lodgeOnly === true) {
+      return null;
+    }
+
     return this.rows.findSuitableSeats(search);
   }
 }

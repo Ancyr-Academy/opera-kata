@@ -15,4 +15,5 @@ export type ReservableSeat =
 export type Search = {
   quantity: number;
   searchPreference?: SearchPreference;
+  lodgeOnly?: boolean;
 };

@@ -7,6 +7,14 @@ import { OrchestraTopology } from './topology/orchestra-topology';
 import { ParterreTopology } from './topology/parterre-topology';
 import { BalconyTopology } from './topology/balcony-topology';
 import { Lodge } from './organization/lodge';
+import { Topology } from './topology';
+import { ReservableSeat, Search } from './types';
+
+class NullTopology implements Topology {
+  findSuitableSeats(search: Search): ReservableSeat[] | null {
+    return null;
+  }
+}
 
 export const createSUT = (config?: {
   rows?: Row[];
@@ -15,6 +23,8 @@ export const createSUT = (config?: {
   const service = new ReservationService();
   if (config?.topology) {
     service.setTopology(config.topology);
+  } else {
+    service.setTopology(new NullTopology());
   }
 
   return { service };
@@ -27,6 +37,7 @@ const unavailableSeat = (position: number) =>
   new Seat({ available: false, position });
 const lodge = (position: number, seats: Seat[]) =>
   new Lodge({ position, seats });
+const withVipLodges = (lodges: Lodge[]) => [...lodges];
 
 describe('orchestra', () => {
   test('no seat available', () => {
@@ -308,7 +319,7 @@ describe('balcony', () => {
   test('reserve the first available seat in the lodge of the balcony', () => {
     const { service } = createSUT({
       topology: new BalconyTopology({
-        lodges: [lodge(1, [availableSeat(1)])],
+        lodges: withVipLodges([lodge(1, [availableSeat(1)])]),
         balconyRows: [],
       }),
     });
@@ -329,7 +340,7 @@ describe('balcony', () => {
   test('reserve many lodge seats', () => {
     const { service } = createSUT({
       topology: new BalconyTopology({
-        lodges: [lodge(1, [availableSeat(1), availableSeat(2)])],
+        lodges: withVipLodges([lodge(1, [availableSeat(1), availableSeat(2)])]),
         balconyRows: [],
       }),
     });
@@ -353,7 +364,7 @@ describe('balcony', () => {
   test('does not reserve any seats if not enough lodge seats are available', () => {
     const { service } = createSUT({
       topology: new BalconyTopology({
-        lodges: [lodge(1, [availableSeat(1)])],
+        lodges: withVipLodges([lodge(1, [availableSeat(1)])]),
         balconyRows: [],
       }),
     });
@@ -370,9 +381,9 @@ describe('balcony', () => {
   test('reserves the first seats available', () => {
     const { service } = createSUT({
       topology: new BalconyTopology({
-        lodges: [
+        lodges: withVipLodges([
           lodge(1, [availableSeat(1), availableSeat(2), availableSeat(3)]),
-        ],
+        ]),
         balconyRows: [],
       }),
     });
@@ -396,14 +407,14 @@ describe('balcony', () => {
   test('skip seats if they are not contiguous', () => {
     const { service } = createSUT({
       topology: new BalconyTopology({
-        lodges: [
+        lodges: withVipLodges([
           lodge(1, [
             availableSeat(1),
             unavailableSeat(2),
             availableSeat(3),
             availableSeat(4),
           ]),
-        ],
+        ]),
         balconyRows: [],
       }),
     });
@@ -422,5 +433,101 @@ describe('balcony', () => {
     });
 
     expect(ticket).toEqual(expectedTicket);
+  });
+
+  test('fall back to rows if the lodges are not available', () => {
+    const { service } = createSUT({
+      topology: new BalconyTopology({
+        lodges: withVipLodges([lodge(1, [unavailableSeat(2)])]),
+        balconyRows: [row(1, [availableSeat(1)])],
+      }),
+    });
+
+    const ticket = service.reserve({
+      places: 1,
+      location: 'balcony',
+    });
+
+    const expectedTicket = new ReservationTicket({
+      places: 1,
+      seats: [{ location: 'balcony', row: 1, position: 1 }],
+    });
+
+    expect(ticket).toEqual(expectedTicket);
+  });
+
+  test('lodgeOnly with no lodges available', () => {
+    const { service } = createSUT({
+      topology: new BalconyTopology({
+        lodges: withVipLodges([lodge(1, [unavailableSeat(2)])]),
+        balconyRows: [row(1, [availableSeat(1)])],
+      }),
+    });
+
+    const ticket = service.reserve({
+      places: 1,
+      location: 'balcony',
+      lodgeOnly: true,
+    });
+
+    const expectedTicket = new NoSeatTicket();
+    expect(ticket).toEqual(expectedTicket);
+  });
+
+  describe('cannot assign more than 3 seats in the lodges', () => {
+    test('can assign 3 seats', () => {
+      const { service } = createSUT({
+        topology: new BalconyTopology({
+          lodges: withVipLodges([
+            lodge(1, [
+              availableSeat(1),
+              availableSeat(2),
+              availableSeat(3),
+              availableSeat(4),
+            ]),
+          ]),
+          balconyRows: [],
+        }),
+      });
+
+      const ticket = service.reserve({
+        places: 3,
+        location: 'balcony',
+      });
+
+      const expectedTicket = new ReservationTicket({
+        places: 3,
+        seats: [
+          { location: 'balcony', lodge: 1, position: 1 },
+          { location: 'balcony', lodge: 1, position: 2 },
+          { location: 'balcony', lodge: 1, position: 3 },
+        ],
+      });
+      expect(ticket).toEqual(expectedTicket);
+    });
+
+    test('cannot assign 4 seats', () => {
+      const { service } = createSUT({
+        topology: new BalconyTopology({
+          lodges: withVipLodges([
+            lodge(1, [
+              availableSeat(1),
+              availableSeat(2),
+              availableSeat(3),
+              availableSeat(4),
+            ]),
+          ]),
+          balconyRows: [],
+        }),
+      });
+
+      const ticket = service.reserve({
+        places: 4,
+        location: 'balcony',
+      });
+
+      const expectedTicket = new NoSeatTicket();
+      expect(ticket).toEqual(expectedTicket);
+    });
   });
 });

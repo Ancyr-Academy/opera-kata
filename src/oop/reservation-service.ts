@@ -1,20 +1,21 @@
 import { NoSeatTicket } from './no-seat-ticket';
 import { ReservationTicket } from './reservation-ticket';
-import { OrchestraTopology } from './topology/orchestra-topology';
 import { Location, SearchPreference } from './types';
 import { Topology } from './topology';
 
 export class ReservationService {
-  private topology: Topology = new OrchestraTopology({ rows: [] });
+  private topology: Topology | null = null;
 
   reserve(order: {
     places: number;
     location: Location;
+    lodgeOnly?: boolean;
     searchPreference?: SearchPreference;
   }) {
-    const result = this.topology.findSuitableSeats({
+    const result = this.topology!.findSuitableSeats({
       quantity: order.places,
       searchPreference: order.searchPreference,
+      lodgeOnly: order.lodgeOnly,
     });
 
     if (result === null) {

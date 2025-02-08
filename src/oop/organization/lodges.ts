@@ -12,6 +12,14 @@ export class Lodges {
   }
 
   findSuitableSeats(search: Search) {
+    if (search.quantity > 3) {
+      return null;
+    }
+
+    return this.findSeats(search);
+  }
+
+  private findSeats(search: Search) {
     for (const lodge of this.lodges) {
       const seats = lodge.findAvailableSeats(search.quantity);
       if (seats) {
