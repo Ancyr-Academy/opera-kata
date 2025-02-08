@@ -1,5 +1,5 @@
 import { Row } from './row';
-import { Location, SearchPreference } from '../types';
+import { Location, ReservableSeat, Search } from '../types';
 
 export class Rows {
   private rows: Row[] = [];
@@ -11,37 +11,21 @@ export class Rows {
     this.location = config.location;
   }
 
-  findSuitableSeats({
-    quantity,
-    searchPreference,
-  }: {
-    quantity: number;
-    searchPreference?: SearchPreference;
-  }) {
-    searchPreference = searchPreference || 'back-to-front';
+  findSuitableSeats(search: Search): ReservableSeat[] | null {
+    const searchPreference = search.searchPreference || 'back-to-front';
+    const rows =
+      searchPreference === 'front-to-back'
+        ? this.rows.slice().reverse()
+        : this.rows;
 
-    if (searchPreference === 'back-to-front') {
-      for (const row of this.rows) {
-        const seats = row.findAvailableSeats(quantity);
-        if (seats.length === quantity) {
-          return seats.map((seat) => ({
-            location: this.location,
-            row: row.getPosition(),
-            position: seat.getPosition(),
-          }));
-        }
-      }
-    } else if (searchPreference === 'front-to-back') {
-      const rows = this.rows.slice().reverse();
-      for (const row of rows) {
-        const seats = row.findAvailableSeats(quantity);
-        if (seats.length === quantity) {
-          return seats.map((seat) => ({
-            location: this.location,
-            row: row.getPosition(),
-            position: seat.getPosition(),
-          }));
-        }
+    for (const row of rows) {
+      const seats = row.findAvailableSeats(search.quantity);
+      if (seats.length === search.quantity) {
+        return seats.map((seat) => ({
+          location: this.location,
+          row: row.getPosition(),
+          position: seat.getPosition(),
+        }));
       }
     }
 

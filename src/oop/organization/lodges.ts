@@ -13,7 +13,7 @@ export class Lodges {
     this.location = config.location;
   }
 
-  findSuitableSeats(search: Search) {
+  findSuitableSeats(search: Search): ReservableSeat[] | null {
     if (search.quantity > 3) {
       return null;
     }
@@ -36,7 +36,7 @@ export class Lodges {
     return null;
   }
 
-  toSeat(seat: LodgeSeat): ReservableSeat {
+  private toSeat(seat: LodgeSeat): ReservableSeat {
     return {
       location: this.location,
       lodge: seat.lodge,
@@ -44,7 +44,7 @@ export class Lodges {
     };
   }
 
-  hasFreeLodges() {
+  private hasFreeLodges() {
     const lodgesWithAvailableSeats = this.lodges.filter((lodge) =>
       lodge.hasAvailableSeats(),
     );
